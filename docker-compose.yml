@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  broker:
+    image: ubuntu:22.04
+    container_name: broker
+    tty: true
+    volumes: 
+      - ./broker:/app
+    ports:
+      - "9092:9092"
+      - "2181:2181"
+    command: /bin/bash
+    networks:
+      - bigdata
+
+  producer:
+    image: ubuntu:22.04
+    container_name: producer
+    tty: true
+    volumes:
+      - ./producer:/app
+    command: /bin/bash
+    networks:
+      - bigdata
+
+  consumer1:
+    image: ubuntu:22.04
+    container_name: consumer1
+    tty: true
+    volumes:
+      - ./consumer1:/app
+    command: /bin/bash
+    networks:
+      - bigdata
+
+  consumer2:
+    image: ubuntu:22.04
+    container_name: consumer2
+    tty: true
+    volumes:
+      - ./consumer2:/app
+    command: /bin/bash
+    networks:
+      - bigdata
+
+networks:
+  bigdata:
