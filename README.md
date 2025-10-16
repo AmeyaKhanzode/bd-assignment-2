@@ -12,6 +12,30 @@ bin/zookeeper-server-start.sh config/zookeeper.properties &
 bin/kafka-server-start.sh config/server.properties &
 ```
 
+To create topics
+```
+bin/kafka-topics.sh --create --topic topic-cpu --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic topic-mem --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic topic-net --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic topic-disk --bootstrap-server localhost:9092
+```
+
+For demo
+```
+(in tmux)
+cd /opt/kafka
+bin/zookeeper-server-start.sh -daemon config/zookeeper.properties
+
+bin/kafka-server-start.sh -daemon config/server.properties
+```
+
+Echo the below to /opt/kafka/config/server.properties
+```
+listeners=PLAINTEXT://0.0.0.0:9092
+advertised.listeners=PLAINTEXT://broker:9092
+zookeeper.connect=localhost:2181
+```
+
 2. Producer
 	- publishes server data
 ```
