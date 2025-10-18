@@ -20,7 +20,7 @@ cpu_schema = StructType([
 mem_schema = StructType([
     StructField("ts", StringType(), True),
     StructField("server_id", StringType(), True),
-    StructField("mem_pct", DoubleType(), True)
+    StructField("topic_mem", DoubleType(), True)
 ])
 
 # Read CSV files
@@ -45,7 +45,7 @@ df_joined = df_cpu.alias("cpu").join(
     col("cpu.timestamp").alias("timestamp"),
     col("cpu.server_id").alias("server_id"),
     col("cpu.cpu_pct").alias("cpu_pct"),
-    col("mem.mem_pct").alias("mem_pct")
+    col("mem.topic_mem").alias("mem_pct")
 )
 
 print(f"[INFO] Joined records: {df_joined.count()}")

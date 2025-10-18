@@ -1,9 +1,10 @@
 import csv
+import json
 from kafka import KafkaProducer
 
 producer = KafkaProducer(
     bootstrap_servers=['broker:9092'],
-    value_serializer=lambda line:json.dump(line).encode('utf-8')
+    value_serializer=lambda line:json.dumps(line).encode('utf-8')
 )
 
 file_path = "dataset.csv"
@@ -11,11 +12,15 @@ file_path = "dataset.csv"
 i = 0
 with open(file_path, "r") as file:
     for line in file:
+        line = line.strip()
+        print(f"line: {line}")
+        if not line or line.startswith("ts"):
+            continue
         if i == 0:
             i += 1
             continue
 
-        ts, server_id, cpu_pct, mem_pct, net_in, net_out, disk_io = line
+        ts, server_id, cpu_pct, mem_pct, net_in, net_out, disk_io = line.split(',')
         
         t_cpu = {
                 'ts': ts,

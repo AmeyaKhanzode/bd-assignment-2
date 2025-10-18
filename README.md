@@ -48,8 +48,17 @@ python3 producer.py
 	- consumer cpu and stuff
 ```
 apt update && apt install python3-pip openjdk-11-jdk -y
-pip install kafka-python pyspark pandas
+pip install kafka-python pyspark 
 python3 consumer_cpu_mem.py
 # or
 python3 consumer_net_disk.py
 ```
+
+Zerotier setup:
+```
+curl -s https://install.zerotier.com | sudo bash (on each vm)
+zerotier-cli join <network ID>
+```
+
+To demo the project:
+- get the IP of the broker

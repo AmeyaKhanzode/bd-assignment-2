@@ -65,7 +65,7 @@ with open('/app/cpu_data.csv', 'w', newline='') as f:
 
 with open('/app/mem_data.csv', 'w', newline='') as f:
     if mem_data:
-        writer = csv.DictWriter(f, fieldnames=['ts', 'server_id', 'mem_pct'])
+        writer = csv.DictWriter(f, fieldnames=['ts', 'server_id', 'topic_mem'])
         writer.writeheader()
         writer.writerows(mem_data)
         print(f"[SUCCESS] {len(mem_data)} Memory records saved to /app/mem_data.csv")
