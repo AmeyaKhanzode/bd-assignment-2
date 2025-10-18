@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, avg, window, when, date_format, to_timestamp, round as spark_round, unix_timestamp, lit
+from pyspark.sql.functions import col, avg, window, when, date_format, to_timestamp, round as spark_round, unix_timestamp, lit, expr
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 
 # Initialize Spark
@@ -59,11 +59,10 @@ windowed_df = df_joined.groupBy(
     avg("mem_pct").alias("avg_mem_raw")
 )
 
-# Round to 2 decimal places using Spark's round (not pandas)
+# Round to 2 decimal places using standard round
 windowed_df = windowed_df.withColumn("avg_cpu", spark_round(col("avg_cpu_raw"), 2)) \
                          .withColumn("avg_mem", spark_round(col("avg_mem_raw"), 2))
 
-# TODO: Replace these thresholds with values from your thresholds.txt file
 CPU_THRESHOLD = 75.69
 MEM_THRESHOLD = 74.28
 
