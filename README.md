@@ -61,4 +61,30 @@ zerotier-cli join <network ID>
 ```
 
 To demo the project:
-- get the IP of the broker
+- on producer
+```
+python3 producer.py
+```
+
+- on consumers
+```
+python3 consumer_cpu_mem.py
+python3 consumer_net_disk.py
+```
+
+- spark jobs
+```
+spark-submit spark_job_cpu_mem.py \
+  --cpu_csv cpu_data.csv \
+  --mem_csv mem_data.csv \
+  --cpu_threshold 75 \
+  --mem_threshold 80 \
+  --out team_NO_CPU_MEM.csv
+
+spark-submit spark_job_net_disk.py \
+  --net_csv net_data.csv \
+  --disk_csv disk_data.csv \
+  --net_threshold 100000 \
+  --disk_threshold 300 \
+  --out team_NO_NET_DISK.csv
+```

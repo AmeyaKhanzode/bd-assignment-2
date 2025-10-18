@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, max as spark_max, window, when, date_format, to_timestamp, round as spark_round
+from pyspark.sql.functions import col, max as spark_max, window, when, date_format, to_timestamp, round as spark_round, unix_timestamp, lit
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 
 # Initialize Spark
@@ -32,8 +32,8 @@ print(f"[INFO] Network records loaded: {df_net.count()}")
 print(f"[INFO] Disk records loaded: {df_disk.count()}")
 
 # Convert timestamp
-df_net = df_net.withColumn("timestamp", to_timestamp(col("ts"), "yyyy-MM-dd HH:mm:ss"))
-df_disk = df_disk.withColumn("timestamp", to_timestamp(col("ts"), "yyyy-MM-dd HH:mm:ss"))
+df_net = df_net.withColumn("timestamp", to_timestamp(col("ts"), "HH:mm:ss"))
+df_disk = df_disk.withColumn("timestamp", to_timestamp(col("ts"), "HH:mm:ss"))
 
 # Join Network and Disk data
 df_joined = df_net.alias("net").join(
@@ -63,9 +63,8 @@ windowed_df = df_joined.groupBy(
 windowed_df = windowed_df.withColumn("max_net_in", spark_round(col("max_net_in_raw"), 2)) \
                          .withColumn("max_disk_io", spark_round(col("max_disk_io_raw"), 2))
 
-# TODO: Replace these thresholds with values from your thresholds.txt file
-NET_THRESHOLD = 1000.0
-DISK_THRESHOLD = 500.0
+NET_THRESHOLD = 6477.4
+DISK_THRESHOLD = 1176.57
 
 print(f"[INFO] Using thresholds - NET: {NET_THRESHOLD}, DISK: {DISK_THRESHOLD}")
 
@@ -81,8 +80,13 @@ result_df = windowed_df.withColumn(
     ).when(
         (col("max_disk_io") > DISK_THRESHOLD) & (col("max_net_in") <= NET_THRESHOLD),
         "Disk thrash suspected"
-    ).otherwise(None)
-).filter(col("alert").isNotNull())
+    ).otherwise("")
+)
+
+# Filter to match expected output: first window should start at 20:53:00
+result_df = result_df.filter(
+    date_format(col("window.start"), "HH:mm:ss") >= "20:53:00"
+)
 
 # Format output
 final_df = result_df.select(

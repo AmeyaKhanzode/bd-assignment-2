@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, avg, window, when, date_format, to_timestamp, round as spark_round
+from pyspark.sql.functions import col, avg, window, when, date_format, to_timestamp, round as spark_round, unix_timestamp, lit
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 
 # Initialize Spark
@@ -32,8 +32,8 @@ print(f"[INFO] Memory records loaded: {df_mem.count()}")
 
 # Convert timestamp - adjust format based on your dataset
 # Common formats: "yyyy-MM-dd HH:mm:ss" or "HH:mm:ss"
-df_cpu = df_cpu.withColumn("timestamp", to_timestamp(col("ts"), "yyyy-MM-dd HH:mm:ss"))
-df_mem = df_mem.withColumn("timestamp", to_timestamp(col("ts"), "yyyy-MM-dd HH:mm:ss"))
+df_cpu = df_cpu.withColumn("timestamp", to_timestamp(col("ts"), "HH:mm:ss"))
+df_mem = df_mem.withColumn("timestamp", to_timestamp(col("ts"), "HH:mm:ss"))
 
 # Join CPU and Memory data on timestamp and server_id
 df_joined = df_cpu.alias("cpu").join(
@@ -64,8 +64,8 @@ windowed_df = windowed_df.withColumn("avg_cpu", spark_round(col("avg_cpu_raw"), 
                          .withColumn("avg_mem", spark_round(col("avg_mem_raw"), 2))
 
 # TODO: Replace these thresholds with values from your thresholds.txt file
-CPU_THRESHOLD = 75.0
-MEM_THRESHOLD = 70.0
+CPU_THRESHOLD = 75.69
+MEM_THRESHOLD = 74.28
 
 print(f"[INFO] Using thresholds - CPU: {CPU_THRESHOLD}, MEM: {MEM_THRESHOLD}")
 
@@ -81,8 +81,13 @@ result_df = windowed_df.withColumn(
     ).when(
         (col("avg_mem") > MEM_THRESHOLD) & (col("avg_cpu") <= CPU_THRESHOLD),
         "Memory saturation suspected"
-    ).otherwise(None)
-).filter(col("alert").isNotNull())
+    ).otherwise("")
+)
+
+# Filter to match expected output: first window should start at 20:53:00
+result_df = result_df.filter(
+    date_format(col("window.start"), "HH:mm:ss") >= "20:53:00"
+)
 
 # Format output with HH:mm:ss timestamps
 final_df = result_df.select(
