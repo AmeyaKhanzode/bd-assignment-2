@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, avg, window, when, date_format, to_timestamp, round as spark_round, unix_timestamp, lit, expr
+from pyspark.sql.functions import col, avg, window, when, date_format, to_timestamp, round as spark_round, min as spark_min, expr
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 
 # Initialize Spark
@@ -20,7 +20,7 @@ cpu_schema = StructType([
 mem_schema = StructType([
     StructField("ts", StringType(), True),
     StructField("server_id", StringType(), True),
-    StructField("topic_mem", DoubleType(), True)
+    StructField("mem_pct", DoubleType(), True)
 ])
 
 # Read CSV files
@@ -30,12 +30,11 @@ df_mem = spark.read.csv("/app/mem_data.csv", header=True, schema=mem_schema)
 print(f"[INFO] CPU records loaded: {df_cpu.count()}")
 print(f"[INFO] Memory records loaded: {df_mem.count()}")
 
-# Convert timestamp - adjust format based on your dataset
-# Common formats: "yyyy-MM-dd HH:mm:ss" or "HH:mm:ss"
+# Convert timestamp
 df_cpu = df_cpu.withColumn("timestamp", to_timestamp(col("ts"), "HH:mm:ss"))
 df_mem = df_mem.withColumn("timestamp", to_timestamp(col("ts"), "HH:mm:ss"))
 
-# Join CPU and Memory data on timestamp and server_id
+# Join CPU and Memory data
 df_joined = df_cpu.alias("cpu").join(
     df_mem.alias("mem"),
     (col("cpu.timestamp") == col("mem.timestamp")) & 
@@ -45,10 +44,14 @@ df_joined = df_cpu.alias("cpu").join(
     col("cpu.timestamp").alias("timestamp"),
     col("cpu.server_id").alias("server_id"),
     col("cpu.cpu_pct").alias("cpu_pct"),
-    col("mem.topic_mem").alias("mem_pct")
+    col("mem.mem_pct").alias("mem_pct")
 )
 
 print(f"[INFO] Joined records: {df_joined.count()}")
+
+# Find the minimum timestamp across all data to determine proper window start
+min_timestamp = df_joined.agg(spark_min("timestamp")).collect()[0][0]
+print(f"[INFO] Minimum timestamp in data: {min_timestamp}")
 
 # Apply 30-second window with 10-second slide, grouped by server_id
 windowed_df = df_joined.groupBy(
@@ -59,9 +62,18 @@ windowed_df = df_joined.groupBy(
     avg("mem_pct").alias("avg_mem_raw")
 )
 
-# Round to 2 decimal places using standard round
+# Round to 2 decimal places
 windowed_df = windowed_df.withColumn("avg_cpu", spark_round(col("avg_cpu_raw"), 2)) \
                          .withColumn("avg_mem", spark_round(col("avg_mem_raw"), 2))
+
+# Calculate window duration and only keep windows with exactly 30 seconds
+windowed_df = windowed_df.withColumn(
+    "window_duration_seconds",
+    (col("window.end").cast("long") - col("window.start").cast("long"))
+)
+
+# Keep only windows with full 30-second duration
+windowed_df = windowed_df.filter(col("window_duration_seconds") == 30)
 
 CPU_THRESHOLD = 75.69
 MEM_THRESHOLD = 74.28
@@ -83,11 +95,6 @@ result_df = windowed_df.withColumn(
     ).otherwise("")
 )
 
-# Filter to match expected output: first window should start at 20:53:00
-result_df = result_df.filter(
-    date_format(col("window.start"), "HH:mm:ss") >= "20:53:00"
-)
-
 # Format output with HH:mm:ss timestamps
 final_df = result_df.select(
     col("server_id"),
@@ -98,10 +105,10 @@ final_df = result_df.select(
     col("alert")
 ).orderBy("server_id", "window_start")
 
-print(f"[INFO] Alerts generated: {final_df.count()}")
+print(f"[INFO] Total windows generated: {final_df.count()}")
 final_df.show(truncate=False)
 
-# Write to CSV - use coalesce(1) to get single file
+# Write to CSV
 final_df.coalesce(1).write.mode("overwrite") \
     .option("header", True) \
     .csv("/app/team_NO_CPU_MEM_output")

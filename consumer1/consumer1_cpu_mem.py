@@ -12,7 +12,7 @@ consumer_cpu = KafkaConsumer(
     value_deserializer=lambda m: json.loads(m.decode('utf-8')),
     auto_offset_reset='earliest',
     enable_auto_commit=True,
-    consumer_timeout_ms=10000,  # Stop after 10s of no messages
+    consumer_timeout_ms=10000,
     api_version=(2, 5, 0)
 )
 
@@ -65,7 +65,7 @@ with open('/app/cpu_data.csv', 'w', newline='') as f:
 
 with open('/app/mem_data.csv', 'w', newline='') as f:
     if mem_data:
-        writer = csv.DictWriter(f, fieldnames=['ts', 'server_id', 'topic_mem'])
+        writer = csv.DictWriter(f, fieldnames=['ts', 'server_id', 'mem_pct'])
         writer.writeheader()
         writer.writerows(mem_data)
         print(f"[SUCCESS] {len(mem_data)} Memory records saved to /app/mem_data.csv")

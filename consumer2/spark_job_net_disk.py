@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, max as spark_max, window, when, date_format, to_timestamp, round as spark_round, unix_timestamp, lit
+from pyspark.sql.functions import col, max as spark_max, window, when, date_format, to_timestamp, round as spark_round, min as spark_min
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 
 # Initialize Spark
@@ -50,6 +50,9 @@ df_joined = df_net.alias("net").join(
 
 print(f"[INFO] Joined records: {df_joined.count()}")
 
+min_timestamp = df_joined.agg(spark_min("timestamp")).collect()[0][0]
+print(f"[INFO] Minimum timestamp in data: {min_timestamp}")
+
 # Apply 30-second window with 10-second slide
 windowed_df = df_joined.groupBy(
     col("server_id"),
@@ -62,6 +65,14 @@ windowed_df = df_joined.groupBy(
 # Round to 2 decimal places
 windowed_df = windowed_df.withColumn("max_net_in", spark_round(col("max_net_in_raw"), 2)) \
                          .withColumn("max_disk_io", spark_round(col("max_disk_io_raw"), 2))
+
+windowed_df = windowed_df.withColumn(
+    "window_duration_seconds",
+    (col("window.end").cast("long") - col("window.start").cast("long"))
+)
+
+# Keep only windows with full 30-second duration
+windowed_df = windowed_df.filter(col("window_duration_seconds") == 30)
 
 NET_THRESHOLD = 6477.4
 DISK_THRESHOLD = 1176.57
@@ -83,11 +94,6 @@ result_df = windowed_df.withColumn(
     ).otherwise("")
 )
 
-# Filter to match expected output: first window should start at 20:53:00
-result_df = result_df.filter(
-    date_format(col("window.start"), "HH:mm:ss") >= "20:53:00"
-)
-
 # Format output
 final_df = result_df.select(
     col("server_id"),
@@ -98,7 +104,7 @@ final_df = result_df.select(
     col("alert")
 ).orderBy("server_id", "window_start")
 
-print(f"[INFO] Alerts generated: {final_df.count()}")
+print(f"[INFO] Total windows generated: {final_df.count()}")
 final_df.show(truncate=False)
 
 # Write to CSV
