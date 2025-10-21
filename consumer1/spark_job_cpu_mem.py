@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, avg, window, when, date_format, to_timestamp, round as spark_round, min as spark_min, expr
+from pyspark.sql.functions import col, avg, window, when, date_format, to_timestamp, round as spark_round, min as spark_min
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 
 # Initialize Spark
@@ -27,14 +27,26 @@ mem_schema = StructType([
 df_cpu = spark.read.csv("/app/cpu_data.csv", header=True, schema=cpu_schema)
 df_mem = spark.read.csv("/app/mem_data.csv", header=True, schema=mem_schema)
 
+df_cpu = df_cpu.withColumn("cpu_pct", col("cpu_pct").cast("double"))
+df_mem = df_mem.withColumn("mem_pct", col("mem_pct").cast("double"))
+
 print(f"[INFO] CPU records loaded: {df_cpu.count()}")
 print(f"[INFO] Memory records loaded: {df_mem.count()}")
+
+# Show sample data to verify types
+print("[INFO] CPU data sample:")
+df_cpu.show(5, truncate=False)
+df_cpu.printSchema()
+
+print("[INFO] Memory data sample:")
+df_mem.show(5, truncate=False)
+df_mem.printSchema()
 
 # Convert timestamp
 df_cpu = df_cpu.withColumn("timestamp", to_timestamp(col("ts"), "HH:mm:ss"))
 df_mem = df_mem.withColumn("timestamp", to_timestamp(col("ts"), "HH:mm:ss"))
 
-# Join CPU and Memory data
+# Join CPU and Memory data on timestamp and server_id
 df_joined = df_cpu.alias("cpu").join(
     df_mem.alias("mem"),
     (col("cpu.timestamp") == col("mem.timestamp")) & 
@@ -48,8 +60,10 @@ df_joined = df_cpu.alias("cpu").join(
 )
 
 print(f"[INFO] Joined records: {df_joined.count()}")
+print("[INFO] Joined data sample:")
+df_joined.show(5, truncate=False)
 
-# Find the minimum timestamp across all data to determine proper window start
+# Find minimum timestamp for window alignment
 min_timestamp = df_joined.agg(spark_min("timestamp")).collect()[0][0]
 print(f"[INFO] Minimum timestamp in data: {min_timestamp}")
 
@@ -62,11 +76,11 @@ windowed_df = df_joined.groupBy(
     avg("mem_pct").alias("avg_mem_raw")
 )
 
-# Round to 2 decimal places
+# Round to 2 decimal places using Spark's round
 windowed_df = windowed_df.withColumn("avg_cpu", spark_round(col("avg_cpu_raw"), 2)) \
                          .withColumn("avg_mem", spark_round(col("avg_mem_raw"), 2))
 
-# Calculate window duration and only keep windows with exactly 30 seconds
+# Filter out windows with improper duration (first incomplete window)
 windowed_df = windowed_df.withColumn(
     "window_duration_seconds",
     (col("window.end").cast("long") - col("window.start").cast("long"))

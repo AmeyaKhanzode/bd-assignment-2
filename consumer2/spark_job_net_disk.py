@@ -28,8 +28,21 @@ disk_schema = StructType([
 df_net = spark.read.csv("/app/net_data.csv", header=True, schema=net_schema)
 df_disk = spark.read.csv("/app/disk_data.csv", header=True, schema=disk_schema)
 
+df_net = df_net.withColumn("net_in", col("net_in").cast("double")) \
+               .withColumn("net_out", col("net_out").cast("double"))
+df_disk = df_disk.withColumn("disk_io", col("disk_io").cast("double"))
+
 print(f"[INFO] Network records loaded: {df_net.count()}")
 print(f"[INFO] Disk records loaded: {df_disk.count()}")
+
+# Show sample data to verify types
+print("[INFO] Network data sample:")
+df_net.show(5, truncate=False)
+df_net.printSchema()
+
+print("[INFO] Disk data sample:")
+df_disk.show(5, truncate=False)
+df_disk.printSchema()
 
 # Convert timestamp
 df_net = df_net.withColumn("timestamp", to_timestamp(col("ts"), "HH:mm:ss"))
@@ -49,7 +62,10 @@ df_joined = df_net.alias("net").join(
 )
 
 print(f"[INFO] Joined records: {df_joined.count()}")
+print("[INFO] Joined data sample:")
+df_joined.show(5, truncate=False)
 
+# Find minimum timestamp
 min_timestamp = df_joined.agg(spark_min("timestamp")).collect()[0][0]
 print(f"[INFO] Minimum timestamp in data: {min_timestamp}")
 
@@ -66,6 +82,7 @@ windowed_df = df_joined.groupBy(
 windowed_df = windowed_df.withColumn("max_net_in", spark_round(col("max_net_in_raw"), 2)) \
                          .withColumn("max_disk_io", spark_round(col("max_disk_io_raw"), 2))
 
+# Filter out windows with improper duration
 windowed_df = windowed_df.withColumn(
     "window_duration_seconds",
     (col("window.end").cast("long") - col("window.start").cast("long"))
