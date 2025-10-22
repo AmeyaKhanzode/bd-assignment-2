@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, avg, window, when, date_format, to_timestamp, round as spark_round, min as spark_min
-from pyspark.sql.types import StructType, StructField, StringType, DoubleType
+from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
 # Initialize Spark
 spark = SparkSession.builder \
@@ -14,21 +14,21 @@ print("[INFO] Starting Spark Job 1 - CPU & Memory Analysis")
 cpu_schema = StructType([
     StructField("ts", StringType(), True),
     StructField("server_id", StringType(), True),
-    StructField("cpu_pct", DoubleType(), True)
+    StructField("cpu_pct", FloatType(), True)
 ])
 
 mem_schema = StructType([
     StructField("ts", StringType(), True),
     StructField("server_id", StringType(), True),
-    StructField("mem_pct", DoubleType(), True)
+    StructField("mem_pct", FloatType(), True)
 ])
 
 # Read CSV files
 df_cpu = spark.read.csv("/app/cpu_data.csv", header=True, schema=cpu_schema)
 df_mem = spark.read.csv("/app/mem_data.csv", header=True, schema=mem_schema)
 
-df_cpu = df_cpu.withColumn("cpu_pct", col("cpu_pct").cast("double"))
-df_mem = df_mem.withColumn("mem_pct", col("mem_pct").cast("double"))
+df_cpu = df_cpu.withColumn("cpu_pct", col("cpu_pct").cast("float"))
+df_mem = df_mem.withColumn("mem_pct", col("mem_pct").cast("float"))
 
 print(f"[INFO] CPU records loaded: {df_cpu.count()}")
 print(f"[INFO] Memory records loaded: {df_mem.count()}")
@@ -88,6 +88,9 @@ windowed_df = windowed_df.withColumn(
 
 # Keep only windows with full 30-second duration
 windowed_df = windowed_df.filter(col("window_duration_seconds") == 30)
+
+# Apply time filter
+windowed_df = windowed_df.filter(date_format(col("window.start"), "HH:mm:ss") >= "20:53:00")
 
 CPU_THRESHOLD = 75.69
 MEM_THRESHOLD = 74.28
