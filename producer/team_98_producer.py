@@ -30,7 +30,7 @@ with open(file_path, "r") as file:
         t_mem = {
             'ts': ts,
             'server_id': server_id,
-            'mem_pct': float(mem_pct)  # ✅ Fixed: was 'topic_mem'
+            'mem_pct': float(mem_pct)
         }
 
         t_net = {
