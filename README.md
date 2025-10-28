@@ -77,14 +77,14 @@ python3 consumer_net_disk.py
 spark-submit spark_job_cpu_mem.py \
   --cpu_csv cpu_data.csv \
   --mem_csv mem_data.csv \
-  --cpu_threshold 75 \
-  --mem_threshold 80 \
+  --cpu_threshold 75.69 \
+  --mem_threshold 74.28 \
   --out team_NO_CPU_MEM.csv
 
 spark-submit spark_job_net_disk.py \
   --net_csv net_data.csv \
   --disk_csv disk_data.csv \
-  --net_threshold 100000 \
-  --disk_threshold 300 \
+  --net_threshold 6477.4 \
+  --disk_threshold 1176.57 \
   --out team_NO_NET_DISK.csv
 ```
