@@ -91,6 +91,9 @@ windowed_df = windowed_df.withColumn(
 # Keep only windows with full 30-second duration
 windowed_df = windowed_df.filter(col("window_duration_seconds") == 30)
 
+# Keep windows starting at or after 20:53:00 to remove initial alignment artifacts
+windowed_df = windowed_df.filter(date_format(col("window.start"), "HH:mm:ss") >= "20:53:00")
+
 NET_THRESHOLD = 6477.4
 DISK_THRESHOLD = 1176.57
 
